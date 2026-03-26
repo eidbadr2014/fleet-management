@@ -1,0 +1,10 @@
+# Device ID Parameter
+
+DeviceId:
+  name: deviceId
+  in: path
+  required: true
+  description: Unique device identifier
+  schema:
+    $ref: '../schemas/deviceTypes.yaml#/DeviceIdType'
+  example: truck-001

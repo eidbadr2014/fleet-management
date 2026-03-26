@@ -1,0 +1,104 @@
+# Device Location Endpoints
+
+locations:
+  get:
+    tags: [Locations]
+    summary: Get location history
+    description: |
+      Retrieve GPS location history for a device within a time range.
+      
+      **Data source:** AWS Timestream (device_metrics table)
+      
+      **Limits:**
+      - Maximum time range: 7 days
+      - Maximum results: 10,000 points
+      - For longer ranges, use pagination or reduce resolution
+      
+      **Consistency:** Data may be eventually consistent (Timestream ingestion delay ~seconds)
+    operationId: getDeviceLocations
+    parameters:
+      - $ref: '../components/parameters/deviceId.yaml#/DeviceId'
+      - $ref: '../components/parameters/time.yaml#/FromTime'
+      - $ref: '../components/parameters/time.yaml#/ToTime'
+      - $ref: '../components/parameters/pagination.yaml#/Limit'
+      - $ref: '../components/parameters/pagination.yaml#/NextToken'
+    responses:
+      '200':
+        description: Location history retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/location.yaml#/LocationHistory'
+            example:
+              deviceId: truck-001
+              from: '2026-03-25T08:00:00Z'
+              to: '2026-03-25T12:00:00Z'
+              locations:
+                - timestamp: '2026-03-25T08:15:00Z'
+                  latitude: 37.7749
+                  longitude: -122.4194
+                  speedKph: 72.7
+                  heading: 270
+                - timestamp: '2026-03-25T08:15:30Z'
+                  latitude: 37.7751
+                  longitude: -122.418
+                  speedKph: 77.2
+                  heading: 268
+                - timestamp: '2026-03-25T08:16:00Z'
+                  latitude: 37.7753
+                  longitude: -122.4165
+                  speedKph: 81.3
+                  heading: 265
+              nextToken: 'eyJ0aW1lc3RhbXAiOiIyMDI2LTAzLTI1VDA4OjE2OjAwWiJ9'
+      '400':
+        $ref: '../components/responses/errors.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/errors.yaml#/Unauthorized'
+      '403':
+        $ref: '../components/responses/errors.yaml#/Forbidden'
+      '404':
+        $ref: '../components/responses/errors.yaml#/NotFound'
+      '429':
+        $ref: '../components/responses/errors.yaml#/TooManyRequests'
+      '500':
+        $ref: '../components/responses/errors.yaml#/InternalError'
+
+latest-position:
+  get:
+    tags: [Locations]
+    summary: Get latest known position
+    description: |
+      Retrieve the most recent known position for real-time tracking.
+      
+      **Data source:** DynamoDB (DeviceLatestStatus table)
+      
+      **Performance:** Sub-millisecond latency - optimized for real-time dashboards.
+      Backed by DynamoDB partition key on `deviceId` for O(1) lookup.
+    operationId: getLatestPosition
+    parameters:
+      - $ref: '../components/parameters/deviceId.yaml#/DeviceId'
+    responses:
+      '200':
+        description: Latest position retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/location.yaml#/LatestPosition'
+            example:
+              deviceId: truck-001
+              position:
+                latitude: 37.7753
+                longitude: -122.4165
+                speedKph: 81.3
+                heading: 265
+              timestamp: '2026-03-25T10:30:00Z'
+      '401':
+        $ref: '../components/responses/errors.yaml#/Unauthorized'
+      '403':
+        $ref: '../components/responses/errors.yaml#/Forbidden'
+      '404':
+        $ref: '../components/responses/errors.yaml#/NotFound'
+      '429':
+        $ref: '../components/responses/errors.yaml#/TooManyRequests'
+      '500':
+        $ref: '../components/responses/errors.yaml#/InternalError'

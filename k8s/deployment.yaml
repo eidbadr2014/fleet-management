@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-ingest
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: data-ingest
+  template:
+    metadata:
+      labels:
+        app: data-ingest
+    spec:
+      containers:
+        - name: data-ingest
+          image: fleet/data-ingest:1.0.0
+          env:
+            - name: TIMESTREAM_DATABASE
+              value: fleet_telemetry
+            - name: TIMESTREAM_TABLE
+              value: device_metrics
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

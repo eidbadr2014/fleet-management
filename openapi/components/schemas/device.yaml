@@ -1,0 +1,31 @@
+# Device Schemas
+
+Device:
+  type: object
+  required:
+    - deviceId
+    - name
+  properties:
+    deviceId:
+      $ref: './deviceTypes.yaml#/DeviceIdType'
+    name:
+      $ref: './deviceTypes.yaml#/DeviceNameType'
+    createdAt:
+      type: string
+      format: date-time
+      description: Device registration timestamp
+    metadata:
+      $ref: './deviceTypes.yaml#/DeviceMetadataType'
+
+CreateDeviceRequest:
+  type: object
+  required:
+    - deviceId
+    - name
+  properties:
+    deviceId:
+      $ref: './deviceTypes.yaml#/DeviceIdType'
+    name:
+      $ref: './deviceTypes.yaml#/DeviceNameType'
+    metadata:
+      $ref: './deviceTypes.yaml#/DeviceMetadataType'

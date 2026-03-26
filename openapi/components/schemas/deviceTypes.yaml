@@ -1,0 +1,26 @@
+# Device Field Type Schemas
+# Single source of truth for device field formats
+
+DeviceIdType:
+  type: string
+  pattern: '^[a-z0-9-]{3,64}$'
+  minLength: 3
+  maxLength: 64
+  description: Unique device identifier (lowercase alphanumeric and hyphens, 3-64 chars)
+  example: truck-001
+
+DeviceNameType:
+  type: string
+  minLength: 1
+  maxLength: 256
+  description: Human-readable device name
+  example: Delivery Truck #1
+
+DeviceMetadataType:
+  type: object
+  description: Device-specific metadata (make, model, year, etc.)
+  additionalProperties: true
+  example:
+    make: Ford
+    model: Transit
+    year: 2024

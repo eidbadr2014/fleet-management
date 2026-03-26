@@ -1,0 +1,21 @@
+# Pagination Parameters
+
+Limit:
+  name: limit
+  in: query
+  required: false
+  description: Maximum number of results to return
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 10000
+    default: 1000
+  example: 100
+
+NextToken:
+  name: nextToken
+  in: query
+  required: false
+  description: Token for pagination - continue from where previous request stopped
+  schema:
+    type: string

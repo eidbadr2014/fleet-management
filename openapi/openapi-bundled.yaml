@@ -1,0 +1,711 @@
+# Fleet Management IoT Platform API
+# OpenAPI 3.0.3 Specification
+# 
+# Render with:
+#   - Swagger UI: https://editor.swagger.io
+#   - Redoc: npx @redocly/cli preview-docs openapi.yaml
+#   - Docker: docker run -p 8080:8080 -e SWAGGER_JSON=/api/openapi.yaml -v $(pwd):/api swaggerapi/swagger-ui
+
+openapi: 3.0.3
+
+info:
+  title: Fleet Management IoT Platform API
+  description: |
+    REST API for fleet management and asset tracking.
+    
+    ## Overview
+    This API provides endpoints for:
+    - **Device Management** - Register and query fleet devices
+    - **Location Tracking** - GPS history and real-time position
+    - **Sensor Telemetry** - Vehicle health metrics and diagnostics
+    
+    ## Authentication
+    All endpoints require a valid JWT token in the Authorization header.
+    Tokens are issued by AWS Cognito User Pool.
+    
+    ```
+    Authorization: Bearer <jwt_token>
+    ```
+    
+    ## Rate Limits
+    | Endpoint Type | Limit |
+    |---------------|-------|
+    | Read endpoints | 1000 req/min |
+    | Write endpoints | 100 req/min |
+    
+    ## Error Handling
+    All errors follow a consistent format with `code`, `message`, and optional `details`.
+    
+  version: 1.0.0
+  contact:
+    name: Fleet API Team
+    email: api-team@example.com
+
+servers:
+  - url: https://api.fleet.example.com/v1
+    description: Production
+  - url: https://api-staging.fleet.example.com/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Local development
+
+tags:
+  - name: Devices
+    description: Device registration and metadata management
+  - name: Locations
+    description: GPS location tracking and history
+  - name: Sensors
+    description: Sensor telemetry data and vehicle diagnostics
+
+paths:
+  # ============================================================================
+  # DEVICE ENDPOINTS
+  # ============================================================================
+  /devices:
+    post:
+      tags: [Devices]
+      summary: Register a new device
+      description: |
+        Register a new device in the fleet management system.
+        This creates a device record in DynamoDB and provisions IoT Core credentials.
+        
+        **Idempotency:** This operation is idempotent based on `deviceId`.
+      operationId: createDevice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeviceRequest'
+            example:
+              deviceId: truck-005
+              name: Delivery Truck #5
+              metadata:
+                make: Ford
+                model: Transit
+                year: 2025
+      responses:
+        '201':
+          description: Device created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+              example:
+                deviceId: truck-005
+                name: Delivery Truck #5
+                createdAt: '2026-03-25T10:40:00Z'
+                metadata:
+                  make: Ford
+                  model: Transit
+                  year: 2025
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Device already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: CONFLICT
+                message: Device with ID 'truck-005' already exists
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /devices/{deviceId}:
+    get:
+      tags: [Devices]
+      summary: Get device details
+      description: |
+        Retrieve device metadata and registration information.
+        Data source: DynamoDB (Devices table)
+      operationId: getDevice
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Device details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+              example:
+                deviceId: truck-001
+                name: Delivery Truck #1
+                createdAt: '2026-03-25T08:00:00Z'
+                metadata:
+                  make: Ford
+                  model: Transit
+                  year: 2024
+                  vin: 1FTBW2CM5JKA12345
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================================
+  # LOCATION ENDPOINTS
+  # ============================================================================
+  /devices/{deviceId}/locations:
+    get:
+      tags: [Locations]
+      summary: Get location history
+      description: |
+        Retrieve GPS location history for a device within a time range.
+        
+        **Data source:** AWS Timestream (device_metrics table)
+        
+        **Limits:**
+        - Maximum time range: 7 days
+        - Maximum results: 10,000 points
+        - For longer ranges, use pagination or reduce resolution
+        
+        **Consistency:** Data may be eventually consistent (Timestream ingestion delay ~seconds)
+      operationId: getDeviceLocations
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/FromTime'
+        - $ref: '#/components/parameters/ToTime'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/NextToken'
+      responses:
+        '200':
+          description: Location history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationHistory'
+              example:
+                deviceId: truck-001
+                from: '2026-03-25T08:00:00Z'
+                to: '2026-03-25T12:00:00Z'
+                locations:
+                  - timestamp: '2026-03-25T08:15:00Z'
+                    latitude: 37.7749
+                    longitude: -122.4194
+                    speedKph: 72.7
+                    heading: 270
+                  - timestamp: '2026-03-25T08:15:30Z'
+                    latitude: 37.7751
+                    longitude: -122.418
+                    speedKph: 77.2
+                    heading: 268
+                  - timestamp: '2026-03-25T08:16:00Z'
+                    latitude: 37.7753
+                    longitude: -122.4165
+                    speedKph: 81.3
+                    heading: 265
+                nextToken: 'eyJ0aW1lc3RhbXAiOiIyMDI2LTAzLTI1VDA4OjE2OjAwWiJ9'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /devices/{deviceId}/latest-position:
+    get:
+      tags: [Locations]
+      summary: Get latest known position
+      description: |
+        Retrieve the most recent known position for real-time tracking.
+        
+        **Data source:** DynamoDB (DeviceLatestStatus table)
+        
+        **Performance:** Sub-millisecond latency - optimized for real-time dashboards.
+        Backed by DynamoDB partition key on `deviceId` for O(1) lookup.
+      operationId: getLatestPosition
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Latest position retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatestPosition'
+              example:
+                deviceId: truck-001
+                position:
+                  latitude: 37.7753
+                  longitude: -122.4165
+                  speedKph: 81.3
+                  heading: 265
+                timestamp: '2026-03-25T10:30:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ============================================================================
+  # SENSOR ENDPOINTS
+  # ============================================================================
+  /devices/{deviceId}/sensors:
+    get:
+      tags: [Sensors]
+      summary: Get sensor telemetry history
+      description: |
+        Retrieve sensor telemetry data (fuel level, engine temp, etc.) for a device.
+        
+        **Data source:** AWS Timestream (device_metrics table)
+        
+        **Available metrics:**
+        - `fuelLevel` - Fuel tank level (percent)
+        - `engineTemp` - Engine temperature (celsius)
+        - `batteryVoltage` - Battery voltage (volts)
+        - `oilPressure` - Oil pressure (bar)
+        - `tirePressure` - Tire pressure (bar)
+      operationId: getDeviceSensors
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/FromTime'
+        - $ref: '#/components/parameters/ToTime'
+        - name: metrics
+          in: query
+          description: |
+            Comma-separated list of metrics to retrieve.
+            If omitted, all available metrics are returned.
+          schema:
+            type: string
+            example: fuelLevel,engineTemp
+      responses:
+        '200':
+          description: Sensor data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SensorHistory'
+              example:
+                deviceId: truck-001
+                from: '2026-03-25T08:00:00Z'
+                to: '2026-03-25T09:00:00Z'
+                sensors:
+                  fuelLevel:
+                    - timestamp: '2026-03-25T08:00:00Z'
+                      value: 85.2
+                      unit: percent
+                    - timestamp: '2026-03-25T08:30:00Z'
+                      value: 82.1
+                      unit: percent
+                  engineTemp:
+                    - timestamp: '2026-03-25T08:00:00Z'
+                      value: 85
+                      unit: celsius
+                    - timestamp: '2026-03-25T08:30:00Z'
+                      value: 91
+                      unit: celsius
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+# ==============================================================================
+# COMPONENTS
+# ==============================================================================
+components:
+  # ============================================================================
+  # SECURITY SCHEMES
+  # ============================================================================
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token issued by AWS Cognito User Pool.
+        
+        Include in Authorization header:
+        ```
+        Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+        ```
+
+  # ============================================================================
+  # PARAMETERS
+  # ============================================================================
+  parameters:
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      description: Unique device identifier
+      schema:
+        $ref: '#/components/schemas/DeviceIdType'
+      example: truck-001
+
+    FromTime:
+      name: from
+      in: query
+      required: true
+      description: |
+        Start time (ISO 8601 UTC).
+        Must be before `to` and within 7 days range.
+      schema:
+        type: string
+        format: date-time
+      example: '2026-03-25T00:00:00Z'
+
+    ToTime:
+      name: to
+      in: query
+      required: true
+      description: |
+        End time (ISO 8601 UTC).
+        Must be after `from` and within 7 days range.
+      schema:
+        type: string
+        format: date-time
+      example: '2026-03-25T23:59:59Z'
+
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Maximum number of results to return
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 10000
+        default: 1000
+      example: 100
+
+    NextToken:
+      name: nextToken
+      in: query
+      required: false
+      description: Token for pagination - continue from where previous request stopped
+      schema:
+        type: string
+
+  # ============================================================================
+  # SCHEMAS
+  # ============================================================================
+  schemas:
+    # --------------------------------------------------------------------------
+    # Shared Types
+    # --------------------------------------------------------------------------
+    DeviceIdType:
+      type: string
+      pattern: '^[a-z0-9-]{3,64}$'
+      minLength: 3
+      maxLength: 64
+      description: Unique device identifier (lowercase alphanumeric and hyphens, 3-64 chars)
+      example: truck-001
+
+    DeviceNameType:
+      type: string
+      minLength: 1
+      maxLength: 256
+      description: Human-readable device name
+      example: Delivery Truck #1
+
+    DeviceMetadataType:
+      type: object
+      description: Device-specific metadata (make, model, year, etc.)
+      additionalProperties: true
+      example:
+        make: Ford
+        model: Transit
+        year: 2024
+
+    # --------------------------------------------------------------------------
+    # Device Schemas
+    # --------------------------------------------------------------------------
+    Device:
+      type: object
+      required:
+        - deviceId
+        - name
+      properties:
+        deviceId:
+          $ref: '#/components/schemas/DeviceIdType'
+        name:
+          $ref: '#/components/schemas/DeviceNameType'
+        createdAt:
+          type: string
+          format: date-time
+          description: Device registration timestamp
+        metadata:
+          $ref: '#/components/schemas/DeviceMetadataType'
+
+    CreateDeviceRequest:
+      type: object
+      required:
+        - deviceId
+        - name
+      properties:
+        deviceId:
+          $ref: '#/components/schemas/DeviceIdType'
+        name:
+          $ref: '#/components/schemas/DeviceNameType'
+        metadata:
+          $ref: '#/components/schemas/DeviceMetadataType'
+
+    # --------------------------------------------------------------------------
+    # Location Schemas
+    # --------------------------------------------------------------------------
+    Location:
+      type: object
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          description: Latitude in decimal degrees
+          example: 37.7749
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          description: Longitude in decimal degrees
+          example: -122.4194
+        speedKph:
+          type: number
+          format: double
+          minimum: 0
+          description: Speed in km/h
+          example: 72.7
+        heading:
+          type: integer
+          minimum: 0
+          maximum: 360
+          description: Heading in degrees (0 = North, 90 = East)
+          example: 270
+        timestamp:
+          type: string
+          format: date-time
+          description: Time of location reading
+
+    LocationHistory:
+      type: object
+      properties:
+        deviceId:
+          type: string
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Location'
+        nextToken:
+          type: string
+          nullable: true
+          description: Token for next page of results (null if no more data)
+
+    LatestPosition:
+      type: object
+      description: |
+        Latest known position of a device.
+        Note: Movement status (moving/stopped/idle) could be added as a future extension.
+      properties:
+        deviceId:
+          type: string
+        position:
+          $ref: '#/components/schemas/Location'
+        timestamp:
+          type: string
+          format: date-time
+          description: Time of last position update
+
+    # --------------------------------------------------------------------------
+    # Sensor Schemas
+    # --------------------------------------------------------------------------
+    SensorReading:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: double
+        unit:
+          type: string
+          description: Unit of measurement
+          example: percent
+
+    SensorHistory:
+      type: object
+      properties:
+        deviceId:
+          type: string
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        sensors:
+          type: object
+          description: Map of metric name to array of readings
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/SensorReading'
+
+    # --------------------------------------------------------------------------
+    # Error Schema
+    # --------------------------------------------------------------------------
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          description: Human-readable error message
+          example: Invalid request parameters
+        details:
+          type: array
+          description: Detailed validation errors
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field that caused the error
+              error:
+                type: string
+                description: Description of the error
+        requestId:
+          type: string
+          description: Request ID for debugging
+
+  # ============================================================================
+  # RESPONSES
+  # ============================================================================
+  responses:
+    BadRequest:
+      description: Invalid request parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            validation_error:
+              summary: Validation error
+              value:
+                code: VALIDATION_ERROR
+                message: Invalid request parameters
+                details:
+                  - field: deviceId
+                    error: Must match pattern ^[a-z0-9-]{3,64}$
+                requestId: req-12345
+            invalid_time_range:
+              summary: Invalid time range
+              value:
+                code: INVALID_TIME_RANGE
+                message: Time range exceeds maximum of 7 days
+                requestId: req-12346
+
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNAUTHORIZED
+            message: Missing or invalid authentication token
+            requestId: req-12347
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: FORBIDDEN
+            message: You do not have permission to access this resource
+            requestId: req-12348
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: Device not found
+            requestId: req-12349
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: RATE_LIMIT_EXCEEDED
+            message: Too many requests. Please retry after 60 seconds.
+            requestId: req-12350
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: INTERNAL_ERROR
+            message: An unexpected error occurred. Please try again later.
+            requestId: req-12351
+
+# ==============================================================================
+# SECURITY
+# ==============================================================================
+security:
+  - BearerAuth: []

@@ -1,0 +1,25 @@
+# Time Range Parameters
+
+FromTime:
+  name: from
+  in: query
+  required: true
+  description: |
+    Start time (ISO 8601 UTC).
+    Must be before `to` and within 7 days range.
+  schema:
+    type: string
+    format: date-time
+  example: '2026-03-25T00:00:00Z'
+
+ToTime:
+  name: to
+  in: query
+  required: true
+  description: |
+    End time (ISO 8601 UTC).
+    Must be after `from` and within 7 days range.
+  schema:
+    type: string
+    format: date-time
+  example: '2026-03-25T23:59:59Z'

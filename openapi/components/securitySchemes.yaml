@@ -1,0 +1,14 @@
+# Security Schemes
+
+securitySchemes:
+  BearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+    description: |
+      JWT token issued by AWS Cognito User Pool.
+      
+      Include in Authorization header:
+      ```
+      Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+      ```

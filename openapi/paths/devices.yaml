@@ -1,0 +1,96 @@
+# Device Management Endpoints
+
+devices:
+  post:
+    tags: [Devices]
+    summary: Register a new device
+    description: |
+      Register a new device in the fleet management system.
+      This creates a device record in DynamoDB and provisions IoT Core credentials.
+      
+      **Idempotency:** This operation is idempotent based on `deviceId`.
+    operationId: createDevice
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../components/schemas/device.yaml#/CreateDeviceRequest'
+          example:
+            deviceId: truck-005
+            name: Delivery Truck #5
+            metadata:
+              make: Ford
+              model: Transit
+              year: 2025
+    responses:
+      '201':
+        description: Device created successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/device.yaml#/Device'
+            example:
+              deviceId: truck-005
+              name: Delivery Truck #5
+              createdAt: '2026-03-25T10:40:00Z'
+              metadata:
+                make: Ford
+                model: Transit
+                year: 2025
+      '400':
+        $ref: '../components/responses/errors.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/errors.yaml#/Unauthorized'
+      '403':
+        $ref: '../components/responses/errors.yaml#/Forbidden'
+      '409':
+        description: Device already exists
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/error.yaml#/Error'
+            example:
+              code: CONFLICT
+              message: Device with ID 'truck-005' already exists
+      '429':
+        $ref: '../components/responses/errors.yaml#/TooManyRequests'
+      '500':
+        $ref: '../components/responses/errors.yaml#/InternalError'
+
+devices/{deviceId}:
+  get:
+    tags: [Devices]
+    summary: Get device details
+    description: |
+      Retrieve device metadata and registration information.
+      Data source: DynamoDB (Devices table)
+    operationId: getDevice
+    parameters:
+      - $ref: '../components/parameters/deviceId.yaml#/DeviceId'
+    responses:
+      '200':
+        description: Device details retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/device.yaml#/Device'
+            example:
+              deviceId: truck-001
+              name: Delivery Truck #1
+              createdAt: '2026-03-25T08:00:00Z'
+              metadata:
+                make: Ford
+                model: Transit
+                year: 2024
+                vin: 1FTBW2CM5JKA12345
+      '401':
+        $ref: '../components/responses/errors.yaml#/Unauthorized'
+      '403':
+        $ref: '../components/responses/errors.yaml#/Forbidden'
+      '404':
+        $ref: '../components/responses/errors.yaml#/NotFound'
+      '429':
+        $ref: '../components/responses/errors.yaml#/TooManyRequests'
+      '500':
+        $ref: '../components/responses/errors.yaml#/InternalError'

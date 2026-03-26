@@ -1,0 +1,122 @@
+# Fleet Management IoT Platform API
+# OpenAPI 3.0.3 Specification (Modular)
+#
+# This file is the entry point that references all component files.
+#
+# Bundle into single file:
+#   npx @redocly/cli bundle openapi.yaml -o openapi-bundled.yaml
+#
+# Validate:
+#   npx @redocly/cli lint openapi.yaml
+#
+# Render with Swagger UI:
+#   npx @redocly/cli preview-docs openapi.yaml
+
+openapi: 3.0.3
+
+info:
+  title: Fleet Management IoT Platform API
+  description: |
+    REST API for fleet management and asset tracking.
+    
+    ## Overview
+    This API provides endpoints for:
+    - **Device Management** - Register and query fleet devices
+    - **Location Tracking** - GPS history and real-time position
+    - **Sensor Telemetry** - Vehicle health metrics and diagnostics
+    
+    ## Authentication
+    All endpoints require a valid JWT token in the Authorization header.
+    Tokens are issued by AWS Cognito User Pool.
+    
+    ```
+    Authorization: Bearer <jwt_token>
+    ```
+    
+    ## Rate Limits
+    | Endpoint Type | Limit |
+    |---------------|-------|
+    | Read endpoints | 1000 req/min |
+    | Write endpoints | 100 req/min |
+    
+    ## Error Handling
+    All errors follow a consistent format with `code`, `message`, and optional `details`.
+    
+  version: 1.0.0
+  contact:
+    name: Fleet API Team
+    email: api-team@example.com
+
+servers:
+  - url: https://api.fleet.example.com/v1
+    description: Production
+  - url: https://api-staging.fleet.example.com/v1
+    description: Staging
+  - url: http://localhost:3000/v1
+    description: Local development
+
+tags:
+  - name: Devices
+    description: Device registration and metadata management
+  - name: Locations
+    description: GPS location tracking and history
+  - name: Sensors
+    description: Sensor telemetry data and vehicle diagnostics
+
+paths:
+  /devices:
+    $ref: './paths/devices.yaml#/devices'
+  /devices/{deviceId}:
+    $ref: './paths/devices.yaml#/devices~1{deviceId}'
+  /devices/{deviceId}/locations:
+    $ref: './paths/device-locations.yaml#/locations'
+  /devices/{deviceId}/latest-position:
+    $ref: './paths/device-locations.yaml#/latest-position'
+  /devices/{deviceId}/sensors:
+    $ref: './paths/device-sensors.yaml#/sensors'
+
+components:
+  securitySchemes:
+    $ref: './components/securitySchemes.yaml#/securitySchemes'
+  parameters:
+    DeviceId:
+      $ref: './components/parameters/deviceId.yaml#/DeviceId'
+    FromTime:
+      $ref: './components/parameters/time.yaml#/FromTime'
+    ToTime:
+      $ref: './components/parameters/time.yaml#/ToTime'
+    Limit:
+      $ref: './components/parameters/pagination.yaml#/Limit'
+  schemas:
+    Device:
+      $ref: './components/schemas/device.yaml#/Device'
+    CreateDeviceRequest:
+      $ref: './components/schemas/device.yaml#/CreateDeviceRequest'
+    Location:
+      $ref: './components/schemas/location.yaml#/Location'
+    LocationHistory:
+      $ref: './components/schemas/location.yaml#/LocationHistory'
+    LatestPosition:
+      $ref: './components/schemas/location.yaml#/LatestPosition'
+    SensorReading:
+      $ref: './components/schemas/sensor.yaml#/SensorReading'
+    SensorHistory:
+      $ref: './components/schemas/sensor.yaml#/SensorHistory'
+    Error:
+      $ref: './components/schemas/error.yaml#/Error'
+  responses:
+    BadRequest:
+      $ref: './components/responses/errors.yaml#/BadRequest'
+    Unauthorized:
+      $ref: './components/responses/errors.yaml#/Unauthorized'
+    Forbidden:
+      $ref: './components/responses/errors.yaml#/Forbidden'
+    NotFound:
+      $ref: './components/responses/errors.yaml#/NotFound'
+    TooManyRequests:
+      $ref: './components/responses/errors.yaml#/TooManyRequests'
+    InternalError:
+      $ref: './components/responses/errors.yaml#/InternalError'
+
+security:
+  - BearerAuth: []

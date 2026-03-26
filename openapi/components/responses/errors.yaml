@@ -1,0 +1,84 @@
+# Error Responses
+
+BadRequest:
+  description: Invalid request parameters or body
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+      examples:
+        validation_error:
+          summary: Validation error
+          value:
+            code: VALIDATION_ERROR
+            message: Invalid request parameters
+            details:
+              - field: deviceId
+                error: Must match pattern ^[a-z0-9-]{3,64}$
+            requestId: req-12345
+        invalid_time_range:
+          summary: Invalid time range
+          value:
+            code: INVALID_TIME_RANGE
+            message: Time range exceeds maximum of 7 days
+            requestId: req-12346
+
+Unauthorized:
+  description: Authentication required or token invalid
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+      example:
+        code: UNAUTHORIZED
+        message: Missing or invalid authentication token
+        requestId: req-12347
+
+Forbidden:
+  description: Insufficient permissions
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+      example:
+        code: FORBIDDEN
+        message: You do not have permission to access this resource
+        requestId: req-12348
+
+NotFound:
+  description: Resource not found
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+      example:
+        code: NOT_FOUND
+        message: Device not found
+        requestId: req-12349
+
+TooManyRequests:
+  description: Rate limit exceeded
+  headers:
+    Retry-After:
+      schema:
+        type: integer
+      description: Seconds to wait before retrying
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+      example:
+        code: RATE_LIMIT_EXCEEDED
+        message: Too many requests. Please retry after 60 seconds.
+        requestId: req-12350
+
+InternalError:
+  description: Internal server error
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+      example:
+        code: INTERNAL_ERROR
+        message: An unexpected error occurred. Please try again later.
+        requestId: req-12351

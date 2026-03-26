@@ -1,0 +1,68 @@
+# Device Sensor Endpoints
+
+sensors:
+  get:
+    tags: [Sensors]
+    summary: Get sensor telemetry history
+    description: |
+      Retrieve sensor telemetry data (fuel level, engine temp, etc.) for a device.
+      
+      **Data source:** AWS Timestream (device_metrics table)
+      
+      **Available metrics:**
+      - `fuelLevel` - Fuel tank level (percent)
+      - `engineTemp` - Engine temperature (celsius)
+      - `batteryVoltage` - Battery voltage (volts)
+      - `oilPressure` - Oil pressure (bar)
+      - `tirePressure` - Tire pressure (bar)
+    operationId: getDeviceSensors
+    parameters:
+      - $ref: '../components/parameters/deviceId.yaml#/DeviceId'
+      - $ref: '../components/parameters/time.yaml#/FromTime'
+      - $ref: '../components/parameters/time.yaml#/ToTime'
+      - name: metrics
+        in: query
+        description: |
+          Comma-separated list of metrics to retrieve.
+          If omitted, all available metrics are returned.
+        schema:
+          type: string
+          example: fuelLevel,engineTemp
+    responses:
+      '200':
+        description: Sensor data retrieved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas/sensor.yaml#/SensorHistory'
+            example:
+              deviceId: truck-001
+              from: '2026-03-25T08:00:00Z'
+              to: '2026-03-25T09:00:00Z'
+              sensors:
+                fuelLevel:
+                  - timestamp: '2026-03-25T08:00:00Z'
+                    value: 85.2
+                    unit: percent
+                  - timestamp: '2026-03-25T08:30:00Z'
+                    value: 82.1
+                    unit: percent
+                engineTemp:
+                  - timestamp: '2026-03-25T08:00:00Z'
+                    value: 85
+                    unit: celsius
+                  - timestamp: '2026-03-25T08:30:00Z'
+                    value: 91
+                    unit: celsius
+      '400':
+        $ref: '../components/responses/errors.yaml#/BadRequest'
+      '401':
+        $ref: '../components/responses/errors.yaml#/Unauthorized'
+      '403':
+        $ref: '../components/responses/errors.yaml#/Forbidden'
+      '404':
+        $ref: '../components/responses/errors.yaml#/NotFound'
+      '429':
+        $ref: '../components/responses/errors.yaml#/TooManyRequests'
+      '500':
+        $ref: '../components/responses/errors.yaml#/InternalError'

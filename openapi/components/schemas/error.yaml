@@ -1,0 +1,31 @@
+# Error Schema
+
+Error:
+  type: object
+  required:
+    - code
+    - message
+  properties:
+    code:
+      type: string
+      description: Machine-readable error code
+      example: VALIDATION_ERROR
+    message:
+      type: string
+      description: Human-readable error message
+      example: Invalid request parameters
+    details:
+      type: array
+      description: Detailed validation errors
+      items:
+        type: object
+        properties:
+          field:
+            type: string
+            description: Field that caused the error
+          error:
+            type: string
+            description: Description of the error
+    requestId:
+      type: string
+      description: Request ID for debugging
